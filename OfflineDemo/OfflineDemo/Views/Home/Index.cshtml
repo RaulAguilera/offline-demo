@@ -1,8 +1,141 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Inspections list";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<h2>Inspections List</h2>
+
+<div id="inspectionsDiv">
+    <table id="inspectionsTable" style="width:100%; border:1px solid black">
+        <thead>
+            <tr>
+                <td>Inspection Id</td>
+                <td>Customer Name</td>
+                <td>Clean Date</td>
+                <td>Inspector Name</td>
+                <td>Status</td>
+                <td>Inspect</td>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
 </div>
+
+<script>
+
+    window.addEventListener('load', function () {
+         if ('serviceWorker' in navigator) {
+
+            navigator.serviceWorker.register('/sw.js', {
+                scope: 'Home/Privacy'
+            });
+    }
+        CleanLocalStorage();
+        LoadInspectionsGrid();
+    });
+
+
+    function LoadInspectionsGrid() {
+
+        fetch('/Home/GetInspections')
+            .then((response) => {
+                return response.json();
+            }).then((inspections) => {
+
+                inspections.forEach(function (serverInspection) {
+                    debugger;
+                    var localInspection = JSON.parse(localStorage.getItem(serverInspection.inspectionId));
+
+                    if (localInspection == null || localInspection.status == 'Downloaded' || localInspection.status == 'Completed') {
+                        console.log('Saving inspection to local storage: ' + serverInspection.inspectionId);
+                        serverInspection.status = serverInspection.endDate != null ? 'Completed' : 'Downloaded';
+                        serverInspection.lastDownloadedOn = new Date().toLocaleString('en-US', { hour12: false });
+                        localStorage.setItem(serverInspection.inspectionId, JSON.stringify(serverInspection));
+                        AddInspectionToGrid(serverInspection);
+                    }
+                    else {
+                        AddInspectionToGrid(localInspection);
+                        console.log('Not Saving inspection to local storage because it is InProgress or PendingSync: ' + serverInspection.inspectionId);
+                    }
+                });
+            });
+    }
+
+
+    function CleanLocalStorage() {
+
+            var pendingSyncInsp = [];
+            var inspectionStatusesToRemoveFromLocalStorage = ['Downloaded', 'Completed'];
+
+            for (i = 0; i <= localStorage.length - 1; i++) {
+                isInspection = false;
+                var inspectionNumber = localStorage.key(i);
+                if (isNormalInteger(inspectionNumber)) {
+                    var inspection = JSON.parse(localStorage.getItem(inspectionNumber));
+                    var isInspection = inspection.hasOwnProperty('inspectionId')
+                    debugger;
+                    if (isInspection) {
+                        if (inspectionStatusesToRemoveFromLocalStorage.includes(inspection.status)) {
+                            console.log('Removing inspection from local storage: ' + inspection.inspectionId);
+                            localStorage.removeItem(inspectionNumber);
+                            i--;
+                        }
+                        else if (inspection.status == 'PendingSync') {
+                            pendingSyncInsp.push(inspection);
+                        }
+                    }
+                }
+            }
+
+            SyncInspections(pendingSyncInsp);
+    }
+
+    function SyncInspections(inspections)
+    {
+        //We should send inspections to server for demo purposes I just update the status to completed here
+        inspections.forEach((inspection) => {
+            debugger;
+            inspection.status = "Completed";
+            localStorage.setItem(inspection.inspectionId, JSON.stringify(inspection));
+        });
+    }
+
+    function isNormalInteger(str) {
+        var n = Math.floor(Number(str));
+        return n !== Infinity && String(n) === str && n >= 0;
+    }
+
+    function AddInspectionToGrid(inspection) {
+
+        var tableBody = document.getElementById('inspectionsTable').getElementsByTagName('tbody')[0];
+        var newRow = tableBody.insertRow();
+
+        var inspectionIdCell = newRow.insertCell();
+        var inspectionIdVal = document.createTextNode(inspection.inspectionId);
+        var customerNameCell = newRow.insertCell();
+        var customerNameVal = document.createTextNode(inspection.customerName);
+        var cleanDateCell = newRow.insertCell();
+        var cleanDateVal = document.createTextNode(inspection.cleanDate);
+        var inspectorNameCell = newRow.insertCell();
+        var inspectorNameVal = document.createTextNode(inspection.status);
+        var statusCell = newRow.insertCell();
+        var statusVal = document.createTextNode(inspection.status);
+        var btnCell = newRow.insertCell();
+        let btn = document.createElement("button");
+        btn.innerHTML = "Inspect";
+        btn.onclick = function () {
+            window.location = '/Home/Privacy?' + 'inspectionId=' + inspection.inspectionId;
+        };
+
+
+        inspectionIdCell.appendChild(inspectionIdVal);
+        customerNameCell.appendChild(customerNameVal);
+        cleanDateCell.appendChild(cleanDateVal);
+        inspectorNameCell.appendChild(inspectorNameVal);
+        statusCell.appendChild(statusVal);
+        btnCell.appendChild(btn);
+
+    }
+
+
+</script>

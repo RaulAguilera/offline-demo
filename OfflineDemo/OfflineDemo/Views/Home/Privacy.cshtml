@@ -4,3 +4,79 @@
 <h1>@ViewData["Title"]</h1>
 
 <p>Use this page to detail your site's privacy policy.</p>
+
+<div id="infoDiv">
+    <label>Inspection Id</label>
+    <input type="text" id="txtInspectionId" />
+    <br />
+    <label>Customer Name</label>
+    <input type="text" id="txtCustomerName" />
+    <br />
+    <label>Clean date</label>
+    <input type="text" id="txtCleanDate" />
+    <br />
+    <label>Inspector Name</label>
+    <input type="text" id="txtInspectorName" />
+    <br />
+    <input type="button" value="Complete" onclick="CompleteInspection()" />
+</div>
+<br />
+
+<script>
+
+    window.addEventListener('load', function () {
+
+        let urlParams = new URLSearchParams(window.location.search);
+        let inspectionId = urlParams.get('inspectionId');
+        let inspection = JSON.parse(localStorage.getItem(inspectionId));
+
+        document.getElementById("txtInspectionId").value = inspection.inspectionId;
+        document.getElementById("txtCustomerName").value = inspection.customerName;
+        document.getElementById("txtCleanDate").value = inspection.cleanDate;
+        document.getElementById("txtInspectorName").value = inspection.inspectorName;
+        inspection.status = 'InProgress';
+        localStorage.setItem(inspection.inspectionId, JSON.stringify(inspection));
+    });
+
+    function CompleteInspection() {
+        const data = {
+            InspectionId: document.getElementById("txtInspectionId").value,
+            CustomerName: document.getElementById("txtCustomerName").value,
+            CleanDate: document.getElementById("txtCleanDate").value,
+            InspectorName: document.getElementById("txtCleanDate").value,
+        };
+
+        fetch('/Home/CompleteInspection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+            .then(response => {
+                if (!response.ok) {
+                    debugger;
+                    throw new Error('Network response was not OK');
+                }
+                return response;
+            })
+            .then(data => {
+                SaveInspectionToLocalStorage('Completed');
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                SaveInspectionToLocalStorage('PendingSync');
+                console.log('Error:', error);
+            });
+    }
+
+    function SaveInspectionToLocalStorage(status) {
+        let inspection = JSON.parse(localStorage.getItem(document.getElementById("txtInspectionId").value));
+        inspection.status = status;
+        inspection.endDate = new Date().toLocaleString('en-US', { hour12: false });
+
+        localStorage.setItem(inspection.inspectionId, JSON.stringify(inspection));
+    }
+
+
+</script>
